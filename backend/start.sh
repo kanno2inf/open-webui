@@ -41,12 +41,20 @@ if [[ "${USE_CUDA_DOCKER,,}" == "true" ]]; then
   export LD_LIBRARY_PATH="$LD_LIBRARY_PATH:/usr/local/lib/python3.11/site-packages/torch/lib:/usr/local/lib/python3.11/site-packages/nvidia/cudnn/lib"
 fi
 
+
+SSL_OPTION=()
+if [ -n "$WEBUI_SSL_KEY" ] && [ -n "$WEBUI_SSL_CERT" ]; then
+  echo "SSL key and cert provided, configuring for HTTPS"
+  SSL_OPTION=("--ssl-keyfile" "$WEBUI_SSL_KEY" "--ssl-certfile" "$WEBUI_SSL_CERT")
+fi
+
+
 # Check if SPACE_ID is set, if so, configure for space
 if [ -n "$SPACE_ID" ]; then
   echo "Configuring for HuggingFace Space deployment"
   if [ -n "$ADMIN_USER_EMAIL" ] && [ -n "$ADMIN_USER_PASSWORD" ]; then
     echo "Admin user configured, creating"
-    WEBUI_SECRET_KEY="$WEBUI_SECRET_KEY" uvicorn open_webui.main:app --host "$HOST" --port "$PORT" --forwarded-allow-ips '*' &
+    WEBUI_SECRET_KEY="$WEBUI_SECRET_KEY" uvicorn open_webui.main:app --host "$HOST" --port "$PORT" --forwarded-allow-ips '*' "${SSL_OPTION[@]}" &
     webui_pid=$!
     echo "Waiting for webui to start..."
     while ! curl -s http://localhost:8080/health > /dev/null; do
@@ -65,4 +73,4 @@ if [ -n "$SPACE_ID" ]; then
   export WEBUI_URL=${SPACE_HOST}
 fi
 
-WEBUI_SECRET_KEY="$WEBUI_SECRET_KEY" exec uvicorn open_webui.main:app --host "$HOST" --port "$PORT" --forwarded-allow-ips '*'
+WEBUI_SECRET_KEY="$WEBUI_SECRET_KEY" exec uvicorn open_webui.main:app --host "$HOST" --port "$PORT" --forwarded-allow-ips '*' "${SSL_OPTION[@]}"
